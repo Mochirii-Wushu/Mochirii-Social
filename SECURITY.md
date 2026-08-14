@@ -18,8 +18,7 @@ credential attacks, destructive actions, persistence, malware delivery, bulk
 collection, or testing against third-party provider systems. Stop immediately
 if another person's data, service stability, or credentials could be affected.
 
-This seed has no supported runtime release. Any remediation uses a focused
-branch, exact-head CI and review, and separate approval for secrets, providers,
-data, publication, deployment, or disclosure. Upstream Pixelfed findings that
-do not arise from Mochirii changes should also follow the current official
-upstream security policy after the report is safely triaged.
+Remediation uses a focused branch, exact-head CI and review, and separate
+approval for secrets, providers, data, publication, deployment, or disclosure.
+Findings in retained upstream code should also follow the current official
+upstream security process after safe triage.

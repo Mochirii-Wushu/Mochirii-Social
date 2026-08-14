@@ -1,43 +1,50 @@
-# Mochirii Social governance seed
+# Mochirii Social
 
-History-clean governance proposal for the future canonical
-`Mochirii-Wushu/Mochirii-Social` repository.
+Canonical source, immutable image, deployment, validation, and recovery
+repository for `social.mochirii.com`.
 
-This tree intentionally contains no runnable application, image, deployment,
-provider binding, secret, member data, or production activation. It exists to
-establish repository instructions, contribution and security policy,
-least-privilege CI, official upstream provenance, clone-local remote safety,
-and a machine-checked no-parent bootstrap boundary before the accepted Social
-source candidate is introduced in a later reviewed child commit.
+The application stays at `services/social` and is imported from Website commit
+`ef5675575aeea6cb41def256d0a889f60f963ff8`. The imported tree preserves the
+incumbent application, dependencies, generated assets, migrations, production
+Compose template, operations scripts, and upstream revision. This authority
+transfer does not upgrade the application or change production behavior.
+
+## Fixed posture
+
+- closed registration;
+- existing Mochirii identity and membership flow;
+- ActivityPub federation disabled;
+- existing database, Redis, workers, scheduler, and object-storage behavior;
+- exact-digest production images only;
+- no workstation runtime dependency.
 
 ## Validate
 
 ```sh
 npm ci --ignore-scripts
-node scripts/configure-remotes.mjs --apply
+npm --prefix services/social ci
 npm run check
-npm run check:remotes
+composer install --working-dir=services/social --no-interaction --prefer-dist --no-progress
+php services/social/artisan test services/social/tests/Unit/AvatarUploadPolicyTest.php
 git diff --check
 ```
 
-The configurator changes only local Git configuration and performs no fetch or
-push. Passing validation proves only the governance source. It does not satisfy
-the unresolved CODEOWNERS team, private-capable GitHub plan, protected-main,
-legal, image, provider, identity, backup/restore, deployment, or live-service
-gates.
+The image workflow additionally builds the exact application context,
+validates clean-database migrations, verifies OCI labels, produces an SPDX
+SBOM, creates GitHub attestations, and records the immutable registry digest.
+Candidate publication and production deployment are separate manual gates.
 
-## Upstream and license
+## Operations
 
-The later application source is derived from the official Pixelfed project at
-`https://github.com/pixelfed/pixelfed.git` and remains licensed under GNU
-AGPLv3. This governance seed preserves the exact upstream license in `LICENSE`
-and the reviewed source identity in
-`docs/operations/UPSTREAM-PROVENANCE.md`. A private GitHub repository alone is
-not the production Corresponding Source offer required by the release gate.
+- [Source equivalence](docs/operations/SOURCE-EQUIVALENCE.md)
+- [Deployment and rollback](docs/operations/DEPLOYMENT.md)
+- [Release traceability](docs/operations/RELEASE-TRACEABILITY.md)
+- [Upstream provenance](docs/operations/UPSTREAM-PROVENANCE.md)
+- [Hosted runtime](services/social/docs/online-hosted-runtime.md)
+- [Backup and recovery](services/social/docs/online-backup-recovery.md)
 
-## Integration
+## License
 
-See `docs/operations/REMOTE-BOOTSTRAP.md` and
-`docs/operations/github-bootstrap.v1.json`. No commit, push, ruleset, plan,
-visibility, package, environment, secret, provider, or production mutation is
-authorized by these files.
+The application source remains under GNU AGPLv3, with required upstream and
+third-party notices preserved. Operational secrets, member data, databases,
+media, and recovery material never belong in Git.

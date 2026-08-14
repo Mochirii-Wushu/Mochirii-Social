@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "Mochirii-Wushu/Mochirii-Website",
+    "commit": "ef5675575aeea6cb41def256d0a889f60f963ff8",
+    "subtree": "d34a61164a37a5b9c476120b03058e6a9836fc58",
+    "path": "services/social",
+    "file_count": 2630
+  },
+  "destination": {
+    "repository": "Mochirii-Wushu/Mochirii-Social",
+    "path": "services/social"
+  },
+  "allowed_transition_paths": [
+    "AGENTS.md",
+    "Dockerfile",
+    "README.md",
+    "docs/media-spaces-readiness.md",
+    "docs/upstream-sync-policy.md",
+    "scripts/build-production-image.sh",
+    "scripts/check-clean-database-migrations.sh",
+    "scripts/check-mochirii-ops-readiness.mjs",
+    "scripts/check-production-runtime.mjs"
+  ]
+}
