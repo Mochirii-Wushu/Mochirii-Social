@@ -8,6 +8,7 @@
   },
   "scripts": {
     "check": "node scripts/check-repository.mjs && node scripts/check-source-equivalence.mjs && node scripts/check-release-traceability.mjs && node scripts/check-secret-boundary.mjs && node scripts/check-history-clean.mjs --require-history && node scripts/test-remotes.mjs && node scripts/verify-remotes.mjs && npm --prefix services/social run check:mochirii-ops",
+    "check:frontend-assets": "node scripts/verify-incumbent-frontend-assets.mjs",
     "check:history": "node scripts/check-history-clean.mjs --require-history",
     "check:release-traceability": "node scripts/check-release-traceability.mjs",
     "check:remotes": "node scripts/verify-remotes.mjs",

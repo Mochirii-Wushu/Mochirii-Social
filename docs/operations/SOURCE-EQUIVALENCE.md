@@ -32,3 +32,21 @@ npm run check:source-equivalence
 The generator reads immutable Git objects and the Social candidate index. It
 does not inspect runtime configuration, credentials, production data, media,
 or provider state.
+
+## Generated frontend parity
+
+The incumbent release was created before the Website repository required LF
+checkouts for tracked Vue and SCSS inputs. Its committed production assets were
+built from the exact Git blobs above using the then-current Windows checkout
+semantics: the 228 tracked `*.vue` and `*.scss` inputs used CRLF, while the
+already-pinned JavaScript and CSS inputs remained LF. The generated vendor
+license was normalized by removing trailing horizontal whitespace.
+
+`scripts/verify-incumbent-frontend-assets.mjs` recreates only those historical
+checkout semantics in one disposable application, installs its exact lockfile
+offline into a physical local `node_modules`, and runs two independently
+reseeded production builds. Each round byte-compares the complete generated
+public-file inventory with the committed incumbent assets and verifies that no
+non-public tracked byte changed. It never writes to or restores the canonical
+`services/social` tree. This preserves the exact incumbent application while
+making the repository transition reproducible on Linux and Windows.
