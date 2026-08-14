@@ -1,0 +1,18 @@
+{
+  "name": "mochirii-social-governance-seed",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": "22.23.2",
+    "npm": "10.9.8"
+  },
+  "scripts": {
+    "check": "node scripts/check-governance-seed.mjs && node scripts/check-history-clean.mjs && node scripts/test-history-clean.mjs",
+    "check:governance": "node scripts/check-governance-seed.mjs",
+    "check:history": "node scripts/check-history-clean.mjs",
+    "check:history:required": "node scripts/check-history-clean.mjs --require-history",
+    "check:remotes": "node scripts/verify-remotes.mjs",
+    "test:history": "node scripts/test-history-clean.mjs",
+    "test:remotes": "node scripts/test-remotes.mjs"
+  }
+}

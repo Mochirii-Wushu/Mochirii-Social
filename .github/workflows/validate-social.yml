@@ -1,0 +1,51 @@
+name: validate-social
+
+'on':
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-social-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-social:
+    name: validate-social
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use the pinned Node runtime
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.3.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install the dependency-free governance lock
+        run: npm ci --ignore-scripts
+
+      - name: Configure clone-local pull-only upstream controls
+        run: node scripts/configure-remotes.mjs --apply
+
+      - name: Validate the history-clean governance seed
+        run: |
+          npm run check
+          npm run check:history:required
+
+      - name: Verify canonical remote roles
+        run: npm run check:remotes
+
+      - name: Reject generated source changes and whitespace errors
+        run: |
+          git diff --exit-code
+          git diff --check

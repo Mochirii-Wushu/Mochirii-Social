@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "status": "blocked_source_and_approval",
+  "scope": {
+    "repository": "Mochirii-Wushu/Mochirii-Social",
+    "intended_visibility": "private",
+    "default_branch": "main",
+    "production_hostname": "social.mochirii.com"
+  },
+  "accepted_source": {
+    "base_commit": "7b9a6f4a55969b085b4203157b7a7876933f2558",
+    "runtime_storage_tree": "7a12912290a07cae2fa8098e3e04e40c8c254317",
+    "source_only_review_passed": true,
+    "runtime_accepted": false,
+    "preserve_in_later_child_tree": true
+  },
+  "history_clean_seed": {
+    "standalone_repository": true,
+    "parent_count": 0,
+    "tree": null,
+    "root_commit": null,
+    "remote_main_commit": null,
+    "remote_main_tree": null,
+    "review_passed": false,
+    "first_push_authorized": false
+  },
+  "governance": {
+    "contribution_policy_corrected": true,
+    "remote_bootstrap_present": true,
+    "remote_verifier_present": true,
+    "history_clean_checker_present": true,
+    "codeowners": {
+      "team_slug": null,
+      "approved": false,
+      "comment_only_file": true
+    },
+    "github_plan": {
+      "selected": null,
+      "approved": false,
+      "monthly_cost": null,
+      "private_protection_capability_verified": false
+    },
+    "protected_main": {
+      "ruleset_id": null,
+      "active": false,
+      "required_checks_verified": false,
+      "codeowners_review_required": false
+    }
+  },
+  "later_source_child": {
+    "parent_commit": null,
+    "commit": null,
+    "tree": null,
+    "accepted_source_parity_manifest_sha256": null,
+    "exact_head_ci_passed": false,
+    "independent_review_passed": false,
+    "draft_pull_request": null
+  },
+  "legal": {
+    "agpl_license_preserved": true,
+    "qualified_counsel_approved": false,
+    "corresponding_source_offer_approved": false,
+    "content_addressed_offer_verified": false,
+    "public_name_exception_approved": false
+  },
+  "remote_mutation": {
+    "repository_visibility_change_authorized": false,
+    "plan_change_authorized": false,
+    "ruleset_change_authorized": false,
+    "environment_creation_authorized": false,
+    "secret_creation_authorized": false,
+    "variable_creation_authorized": false,
+    "package_publication_authorized": false,
+    "push_authorized": false,
+    "pull_request_authorized": false,
+    "merge_authorized": false
+  },
+  "activation": {
+    "candidate_publication_enabled": false,
+    "source_cutover_enabled": false,
+    "candidate_publication_ready": false,
+    "source_offer_ready": false,
+    "ownership_cutover_ready": false,
+    "provider_binding_ready": false,
+    "backup_restore_ready": false,
+    "workstation_off_verified": false,
+    "runtime_ready": false,
+    "deployment_authorized": false,
+    "production_active": false
+  }
+}
