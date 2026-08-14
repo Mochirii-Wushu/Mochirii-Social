@@ -112,9 +112,8 @@ jobs:
             tests/Unit/AvatarUploadPolicyTest.php \
             tests/Unit/ImageTransformPolicyTest.php
 
-      - name: Rebuild committed frontend assets
-        working-directory: services/social
-        run: npm run production
+      - name: Rebuild and verify committed frontend assets with incumbent checkout semantics
+        run: npm run check:frontend-assets
 
       - name: Reject tracked or untracked frontend asset drift
         shell: bash

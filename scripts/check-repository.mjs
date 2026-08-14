@@ -3,6 +3,7 @@ import {
   readFileSync,
   readdirSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 
 const required = [
   ".github/workflows/deploy-social-production.yml",
@@ -28,6 +29,7 @@ const required = [
   "scripts/check-release-traceability.mjs",
   "scripts/check-secret-boundary.mjs",
   "scripts/check-source-equivalence.mjs",
+  "scripts/verify-incumbent-frontend-assets.mjs",
 ];
 const failures = [];
 const read = (file) => readFileSync(file, "utf8").replaceAll("\r\n", "\n");
@@ -51,6 +53,53 @@ function replaceInJob(workflow, jobName, search, replacement) {
   const block = extractJob(workflow, jobName);
   if (!block || !block.includes(search)) return workflow;
   return workflow.replace(block, block.replace(search, replacement));
+}
+
+function frontendVerifierFailures(verifier) {
+  const verifierFailures = [];
+  const requiredSnippets = [
+    "const expectedApplicationFileCount = 2630;",
+    "const expectedLegacyInputCount = 228;",
+    "const expectedConvertedInputCount = 225;",
+    "const expectedPublicFileCount = 446;",
+    "const validationRounds = 2;",
+    'return Buffer.from(lfText.replace(/\\n/gu, "\\r\\n"), "utf8");',
+    '.replace(/\\r\\n/gu, "\\n")\n    .replace(/[ \\t]+$/gmu, "");',
+    "copyTrackedApplication(tempApplicationRoot, trackedRepoPaths);",
+    "recreateLegacyCheckoutInputs(tempApplicationRoot, legacyRepoPaths);",
+    "try {\n  const resolvedTempRoot = resolve(tempRoot);",
+    "installLockedDependencies(tempApplicationRoot);",
+    '["ci", "--offline", "--no-audit", "--no-fund"],',
+    "resolve(realpathSync.native(installedRoot)) !== resolve(installedRoot)",
+    "copyPublicSeed(tempApplicationRoot, publicRepoPaths);",
+    '["run", "production"],',
+    "const digest = comparePublicTree(tempApplicationRoot, publicRepoPaths);",
+    "assertNonPublicTrackedBytes(",
+    "rmSync(tempRoot, { recursive: true, force: true });",
+    "Incumbent frontend assets reproduced exactly without changing the canonical tree.",
+  ];
+  for (const snippet of requiredSnippets) {
+    if (!verifier.includes(snippet)) {
+      verifierFailures.push(`Incumbent frontend verifier is missing: ${snippet}`);
+    }
+  }
+
+  const cleanAssertionCount = verifier.match(/assertCanonicalApplicationClean\(\);/gu)?.length ?? 0;
+  const nonPublicAssertionCount = verifier.match(/assertNonPublicTrackedBytes\(/gu)?.length ?? 0;
+  if (
+    cleanAssertionCount !== 2 ||
+    nonPublicAssertionCount !== 2 ||
+    /git\s+(?:restore|clean|checkout)\b/iu.test(verifier) ||
+    /rmSync\(canonicalApplicationRoot/iu.test(verifier) ||
+    /writeFileSync\([^\n]*canonicalApplicationRoot/iu.test(verifier) ||
+    /copyFileSync\([^\n]*repositoryPathToLocal/iu.test(verifier) ||
+    /symlinkSync|junction|preserve-symlinks|resolve[.]symlinks/iu.test(verifier)
+  ) {
+    verifierFailures.push(
+      "Incumbent frontend verification must use disposable copies and must not restore or overwrite canonical files.",
+    );
+  }
+  return verifierFailures;
 }
 
 function validationTrustBoundaryFailures(workflow) {
@@ -179,7 +228,11 @@ function validationTrustBoundaryFailures(workflow) {
   }
 
   const sourceValidation = extractJob(workflow, "source-validation");
-  const frontendBuildIndex = sourceValidation.indexOf("npm run production");
+  const exactFrontendBuildStep = [
+    "      - name: Rebuild and verify committed frontend assets with incumbent checkout semantics",
+    "        run: npm run check:frontend-assets",
+  ].join("\n");
+  const frontendBuildIndex = sourceValidation.indexOf(exactFrontendBuildStep);
   const frontendDriftIndex = sourceValidation.indexOf(
     "git diff --exit-code -- services/social/public",
   );
@@ -385,7 +438,9 @@ if (
   packageJson.engines?.node !== "22.23.1" ||
   packageJson.engines?.npm !== "10.9.8" ||
   read(".node-version").trim() !== "22.23.1" ||
-  read("services/social/.node-version").trim() !== "22.23.1"
+  read("services/social/.node-version").trim() !== "22.23.1" ||
+  packageJson.scripts?.["check:frontend-assets"] !==
+    "node scripts/verify-incumbent-frontend-assets.mjs"
 ) {
   failures.push("Root and application Node toolchain identity is inconsistent.");
 }
@@ -444,7 +499,7 @@ for (const requiredText of [
   "github.event_name == 'workflow_dispatch'",
   "ghcr.io/mochirii-wushu/mochirii-pixelfed-ops",
   "services/social",
-  "npm run production",
+  "npm run check:frontend-assets",
   "git diff --exit-code -- services/social/public",
   "git ls-files --others --exclude-standard -- services/social/public",
   "Generate production image SBOM",
@@ -722,6 +777,15 @@ const hostileWorkflowFixtures = [
     ),
   ],
   [
+    "incumbent frontend verifier bypassed",
+    replaceInJob(
+      validate,
+      "source-validation",
+      "        run: npm run check:frontend-assets",
+      "        working-directory: services/social\n        run: npm run production",
+    ),
+  ],
+  [
     "tracked frontend drift ignored",
     validate.replace(
       "          git diff --exit-code -- services/social/public\n",
@@ -749,6 +813,97 @@ for (const [label, fixture] of hostileWorkflowFixtures) {
   if (fixture === validate || validationTrustBoundaryFailures(fixture).length === 0) {
     failures.push(`Workflow trust policy did not reject hostile fixture: ${label}`);
   }
+}
+
+const frontendVerifier = read("scripts/verify-incumbent-frontend-assets.mjs");
+failures.push(...frontendVerifierFailures(frontendVerifier));
+const hostileFrontendVerifierFixtures = [
+  [
+    "single validation round",
+    frontendVerifier.replace("const validationRounds = 2;", "const validationRounds = 1;"),
+  ],
+  [
+    "legacy CRLF conversion removed",
+    frontendVerifier.replace(
+      'return Buffer.from(lfText.replace(/\\n/gu, "\\r\\n"), "utf8");',
+      'return Buffer.from(lfText, "utf8");',
+    ),
+  ],
+  [
+    "generated vendor license normalization removed",
+    frontendVerifier.replace(
+      '.replace(/\\r\\n/gu, "\\n")\n    .replace(/[ \\t]+$/gmu, "");',
+      '.replace(/\\r\\n/gu, "\\n");',
+    ),
+  ],
+  [
+    "public byte comparison removed",
+    frontendVerifier.replace(
+      "const digest = comparePublicTree(tempApplicationRoot, publicRepoPaths);",
+      'const digest = "unchecked";',
+    ),
+  ],
+  [
+    "offline locked dependency installation removed",
+    frontendVerifier.replace(
+      '["ci", "--offline", "--no-audit", "--no-fund"],',
+      '["--version"],',
+    ),
+  ],
+  [
+    "physical dependency realpath check removed",
+    frontendVerifier.replace(
+      "resolve(realpathSync.native(installedRoot)) !== resolve(installedRoot)",
+      "false",
+    ),
+  ],
+  [
+    "incumbent public reseed removed",
+    frontendVerifier.replace(
+      "copyPublicSeed(tempApplicationRoot, publicRepoPaths);",
+      "void publicRepoPaths;",
+    ),
+  ],
+  [
+    "non-public drift check removed",
+    frontendVerifier.replace(
+      "assertNonPublicTrackedBytes(\n      tempApplicationRoot,",
+      "void (\n      tempApplicationRoot,",
+    ),
+  ],
+  [
+    "temporary cleanup removed",
+    frontendVerifier.replace(
+      "rmSync(tempRoot, { recursive: true, force: true });",
+      "void tempRoot;",
+    ),
+  ],
+  [
+    "setup-time cleanup boundary removed",
+    frontendVerifier.replace(
+      "try {\n  const resolvedTempRoot = resolve(tempRoot);",
+      "if (true) {\n  const resolvedTempRoot = resolve(tempRoot);",
+    ),
+  ],
+  [
+    "canonical application overwrite introduced",
+    frontendVerifier.replace(
+      "writeFileSync(file, legacyBytes);",
+      'writeFileSync(join(canonicalApplicationRoot, "resources", "hostile.vue"), legacyBytes);',
+    ),
+  ],
+];
+for (const [label, fixture] of hostileFrontendVerifierFixtures) {
+  if (fixture === frontendVerifier || frontendVerifierFailures(fixture).length === 0) {
+    failures.push(`Frontend verifier policy did not reject hostile fixture: ${label}`);
+  }
+}
+
+const normalizedVerifierSha256 = createHash("sha256")
+  .update(frontendVerifier, "utf8")
+  .digest("hex");
+if (normalizedVerifierSha256 !== "23307c4308d78adbc5db19b32350c71d35838a2e6730710e57daf39535cf4fd8") {
+  failures.push("Incumbent frontend verifier seal changed.");
 }
 
 const deploy = read(".github/workflows/deploy-social-production.yml");
