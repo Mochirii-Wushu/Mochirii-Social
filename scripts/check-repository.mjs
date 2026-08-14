@@ -296,8 +296,12 @@ function validationTrustBoundaryFailures(workflow) {
   }
 
   const publish = extractJob(workflow, "publish-social-image");
+  const publishIfLines = publish.match(/^    if:\s*[^\n]+$/gmu) ?? [];
+  const exactPublishCondition =
+    "if: always() && needs.validate-social.result == 'success' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'";
   if (
-    !publish.includes("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'") ||
+    publishIfLines.length !== 1 ||
+    publishIfLines[0].trim() !== exactPublishCondition ||
     !publish.includes("packages: write") ||
     publish.includes("packages: read") ||
     !publish.includes("          ref: ${{ inputs.commit }}") ||
@@ -774,6 +778,33 @@ const hostileWorkflowFixtures = [
     validate.replace(
       '              [[ "$PRODUCTION_IMAGE_RESULT" == "skipped" ]]',
       '              [[ "$PRODUCTION_IMAGE_RESULT" == "success" ]]',
+    ),
+  ],
+  [
+    "manual publisher remains suppressed by skipped validation ancestor",
+    replaceInJob(
+      validate,
+      "publish-social-image",
+      "    if: always() && needs.validate-social.result == 'success' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",
+      "    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",
+    ),
+  ],
+  [
+    "manual publisher accepts skipped validation",
+    replaceInJob(
+      validate,
+      "publish-social-image",
+      "    if: always() && needs.validate-social.result == 'success' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",
+      "    if: always() && needs.validate-social.result != 'failure' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",
+    ),
+  ],
+  [
+    "manual publisher omits exact dispatch and main gate",
+    replaceInJob(
+      validate,
+      "publish-social-image",
+      "    if: always() && needs.validate-social.result == 'success' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'",
+      "    if: always() && needs.validate-social.result == 'success'",
     ),
   ],
   [
