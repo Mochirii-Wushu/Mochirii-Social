@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "repository": "Mochirii-Wushu/Mochirii-Social",
+  "registry_image": "ghcr.io/mochirii-wushu/mochirii-pixelfed-ops",
+  "upstream_revision": "c8bed78bee3d796c5efb57393dafafbba3706f38",
+  "application_version": "0.12.7",
+  "incumbent_record": {
+    "website_commit": "ef5675575aeea6cb41def256d0a889f60f963ff8",
+    "social_tree": "d34a61164a37a5b9c476120b03058e6a9836fc58",
+    "last_recorded_image_digest": "sha256:1fd27c8f76595595912e6f12f1677c7f108aa50f64b38a85089006b47ad395f1"
+  },
+  "live_pre_cutover": {
+    "image_digest": "UNKNOWN_PRE_CUTOVER",
+    "oci_labels": "UNKNOWN_PRE_CUTOVER",
+    "sanitized_configuration_hash": "UNKNOWN_PRE_CUTOVER",
+    "complete_migration_inventory": "UNKNOWN_PRE_CUTOVER",
+    "rollback_digest": "UNKNOWN_PRE_CUTOVER"
+  },
+  "candidate": {
+    "repository_commit": null,
+    "image_digest": null,
+    "sbom_attestation": null,
+    "build_provenance_attestation": null
+  }
+}

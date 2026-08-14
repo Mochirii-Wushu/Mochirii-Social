@@ -1,91 +1,78 @@
 {
-  "schema_version": 1,
-  "status": "blocked_source_and_approval",
+  "schema_version": 2,
+  "status": "source_candidate_uncommitted",
   "scope": {
     "repository": "Mochirii-Wushu/Mochirii-Social",
-    "intended_visibility": "private",
+    "visibility": "public",
     "default_branch": "main",
     "production_hostname": "social.mochirii.com"
   },
   "accepted_source": {
-    "base_commit": "7b9a6f4a55969b085b4203157b7a7876933f2558",
-    "runtime_storage_tree": "7a12912290a07cae2fa8098e3e04e40c8c254317",
-    "source_only_review_passed": true,
-    "runtime_accepted": false,
-    "preserve_in_later_child_tree": true
+    "website_commit": "ef5675575aeea6cb41def256d0a889f60f963ff8",
+    "social_tree": "d34a61164a37a5b9c476120b03058e6a9836fc58",
+    "upstream_revision": "c8bed78bee3d796c5efb57393dafafbba3706f38",
+    "file_count": 2630,
+    "runtime_accepted": true,
+    "preserve_in_integration_child": true
   },
   "history_clean_seed": {
-    "standalone_repository": true,
-    "parent_count": 0,
-    "tree": null,
-    "root_commit": null,
-    "remote_main_commit": null,
-    "remote_main_tree": null,
-    "review_passed": false,
-    "first_push_authorized": false
+    "root_commit": "4cdf1deadc66e572e303f71008db8020933cc513",
+    "root_tree": "b861427004fdab4db9f44faff4e2c3795bf6c171",
+    "remote_main_commit": "4cdf1deadc66e572e303f71008db8020933cc513",
+    "review_passed": true
   },
   "governance": {
-    "contribution_policy_corrected": true,
-    "remote_bootstrap_present": true,
-    "remote_verifier_present": true,
-    "history_clean_checker_present": true,
-    "codeowners": {
-      "team_slug": null,
-      "approved": false,
-      "comment_only_file": true
+    "ruleset": {
+      "name": "Social Main Protection",
+      "target": "main",
+      "active": true,
+      "requires_pull_request": true,
+      "required_status_check": "validate-social",
+      "strict_status_checks": true,
+      "requires_conversation_resolution": true,
+      "required_approvals": 0,
+      "deletion_blocked": true,
+      "non_fast_forward_blocked": true
     },
-    "github_plan": {
-      "selected": null,
-      "approved": false,
-      "monthly_cost": null,
-      "private_protection_capability_verified": false
-    },
-    "protected_main": {
-      "ruleset_id": null,
-      "active": false,
-      "required_checks_verified": false,
-      "codeowners_review_required": false
+    "environments": {
+      "social-production": {
+        "exists": true,
+        "protected_branches": true,
+        "required_value_names_verified": true,
+        "required_values_configured": true
+      },
+      "social-recovery": {
+        "exists": true,
+        "protected_branches": true,
+        "required_value_names_verified": true,
+        "required_values_configured": true
+      }
     }
   },
-  "later_source_child": {
-    "parent_commit": null,
+  "integration_child": {
+    "parent_commit": "4cdf1deadc66e572e303f71008db8020933cc513",
     "commit": null,
     "tree": null,
-    "accepted_source_parity_manifest_sha256": null,
+    "source_equivalence_manifest_sha256": null,
     "exact_head_ci_passed": false,
     "independent_review_passed": false,
-    "draft_pull_request": null
+    "pull_request": null
   },
-  "legal": {
-    "agpl_license_preserved": true,
-    "qualified_counsel_approved": false,
-    "corresponding_source_offer_approved": false,
-    "content_addressed_offer_verified": false,
-    "public_name_exception_approved": false
-  },
-  "remote_mutation": {
-    "repository_visibility_change_authorized": false,
-    "plan_change_authorized": false,
-    "ruleset_change_authorized": false,
-    "environment_creation_authorized": false,
-    "secret_creation_authorized": false,
-    "variable_creation_authorized": false,
-    "package_publication_authorized": false,
-    "push_authorized": false,
-    "pull_request_authorized": false,
-    "merge_authorized": false
+  "delivery": {
+    "existing_registry_package": "ghcr.io/mochirii-wushu/mochirii-pixelfed-ops",
+    "social_repository_package_role": "write",
+    "website_fallback_package_role": "write",
+    "package_access_configured": true,
+    "candidate_published": false,
+    "candidate_digest": null,
+    "production_environment_values_configured": true,
+    "recovery_environment_values_configured": true
   },
   "activation": {
     "candidate_publication_enabled": false,
-    "source_cutover_enabled": false,
-    "candidate_publication_ready": false,
-    "source_offer_ready": false,
-    "ownership_cutover_ready": false,
-    "provider_binding_ready": false,
-    "backup_restore_ready": false,
-    "workstation_off_verified": false,
-    "runtime_ready": false,
-    "deployment_authorized": false,
+    "production_deployment_authorized": false,
+    "source_cutover_complete": false,
+    "website_fallback_revoked": false,
     "production_active": false
   }
 }

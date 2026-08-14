@@ -1,51 +1,413 @@
-name: validate-social
+name: Validate Mochirii Social
 
-'on':
-  pull_request:
+on:
   push:
     branches:
+      - '**'
+  pull_request:
+    branches:
       - main
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Full reviewed Social main commit SHA
+        required: true
+        type: string
+      confirmation:
+        description: Type PUBLISH SOCIAL CANDIDATE
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
   group: validate-social-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+env:
+  PIXELFED_IMAGE: mochirii-pixelfed:production-check
+  REGISTRY_IMAGE: ghcr.io/mochirii-wushu/mochirii-pixelfed-ops
 
 jobs:
-  validate-social:
-    name: validate-social
+  source-validation:
+    name: source-validation
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout exact source without persisted credentials
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Use the pinned Node runtime
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.3.0
+      - name: Validate manual candidate identity
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_COMMIT: ${{ inputs.commit }}
+          RELEASE_CONFIRMATION: ${{ inputs.confirmation }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_COMMIT" == "$GITHUB_SHA" ]]
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$RELEASE_CONFIRMATION" == "PUBLISH SOCIAL CANDIDATE" ]]
+
+      - name: Setup the incumbent Node runtime
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .node-version
-          cache: npm
+          package-manager-cache: false
 
-      - name: Install the dependency-free governance lock
-        run: npm ci --ignore-scripts
-
-      - name: Configure clone-local pull-only upstream controls
+      - name: Configure pull-only upstream controls
         run: node scripts/configure-remotes.mjs --apply
 
-      - name: Validate the history-clean governance seed
-        run: |
-          npm run check
-          npm run check:history:required
+      - name: Install root validation lock
+        run: npm ci --ignore-scripts
 
-      - name: Verify canonical remote roles
-        run: npm run check:remotes
+      - name: Install exact Social Node dependencies
+        working-directory: services/social
+        run: npm ci
 
-      - name: Reject generated source changes and whitespace errors
+      - name: Run repository and Social source checks
+        run: npm run check
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv
+          coverage: none
+
+      - name: Install exact Composer dependencies
+        working-directory: services/social
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare isolated test environment
+        working-directory: services/social
         run: |
+          cp .env.testing .env
+          php artisan key:generate
+
+      - name: Lint tracked Social PHP files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git ls-files -z 'services/social/**/*.php' |
+            xargs -0 -n 1 php -l
+
+      - name: Run targeted authentication, federation, and media policy tests
+        working-directory: services/social
+        run: |
+          php artisan test \
+            tests/Feature/LoginTest.php \
+            tests/Feature/RemoteOidcTest.php \
+            tests/Unit/ActivityPub/AudienceScopeTest.php \
+            tests/Unit/ActivityPub/RemoteFollowTest.php \
+            tests/Unit/AvatarUploadPolicyTest.php \
+            tests/Unit/ImageTransformPolicyTest.php
+
+      - name: Rebuild committed frontend assets
+        working-directory: services/social
+        run: npm run production
+
+      - name: Reject tracked or untracked frontend asset drift
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git diff --exit-code -- services/social/public
+          untracked_assets="$(git ls-files --others --exclude-standard -- services/social/public)"
+          if [[ -n "$untracked_assets" ]]; then
+            printf 'Untracked generated frontend assets:\n%s\n' "$untracked_assets" >&2
+            exit 1
+          fi
+
+      - name: Reject source drift and whitespace errors
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           git diff --exit-code
           git diff --check
+
+  production-image:
+    name: production-image
+    needs: source-validation
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout exact source without persisted credentials
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Build production image locally without registry access
+        id: image-revision
+        working-directory: services/social
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          checked_out_revision="$(git rev-parse HEAD)"
+          [[ "$checked_out_revision" =~ ^[0-9a-f]{40}$ ]]
+          GITHUB_SHA="$checked_out_revision" bash scripts/build-production-image.sh
+          echo "commit=$checked_out_revision" >> "$GITHUB_OUTPUT"
+
+      - name: Verify production image OCI labels
+        env:
+          BUILT_REVISION: ${{ steps.image-revision.outputs.commit }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          checked_out_revision="$(git rev-parse HEAD)"
+          [[ "$checked_out_revision" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BUILT_REVISION" == "$checked_out_revision" ]]
+          GITHUB_SHA="$checked_out_revision" bash scripts/check-image-labels.sh
+
+      - name: Verify production Composer dependencies
+        run: >-
+          docker run --rm --entrypoint php
+          "$PIXELFED_IMAGE"
+          scripts/check-production-composer-dependencies.php
+
+      - name: Verify clean MariaDB migrations and workers
+        working-directory: services/social
+        run: bash scripts/check-clean-database-migrations.sh
+
+      - name: Generate production image SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.PIXELFED_IMAGE }}
+          format: spdx-json
+          output-file: pixelfed-sbom.spdx.json
+          upload-artifact: false
+
+      - name: Upload production image SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: social-image-validation-${{ steps.image-revision.outputs.commit }}
+          path: pixelfed-sbom.spdx.json
+          if-no-files-found: error
+
+  validate-social:
+    name: validate-social
+    needs:
+      - source-validation
+      - production-image
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Confirm every required validation lane passed
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SOURCE_VALIDATION_RESULT: ${{ needs.source-validation.result }}
+          PRODUCTION_IMAGE_RESULT: ${{ needs.production-image.result }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$SOURCE_VALIDATION_RESULT" == "success" ]]
+          case "$EVENT_NAME" in
+            push | pull_request)
+              [[ "$PRODUCTION_IMAGE_RESULT" == "success" ]]
+              ;;
+            workflow_dispatch)
+              [[ "$PRODUCTION_IMAGE_RESULT" == "skipped" ]]
+              ;;
+            *)
+              echo "Unsupported validation event: $EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+          echo "Source and event-required image validation passed."
+
+  publish-social-image:
+    name: Publish one immutable candidate
+    needs: validate-social
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    steps:
+      - name: Checkout the exact reviewed candidate
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.commit }}
+
+      - name: Reconfirm exact protected-main identity
+        env:
+          RELEASE_COMMIT: ${{ inputs.commit }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_COMMIT" ]]
+          git fetch --no-tags origin main
+          [[ "$(git rev-parse origin/main)" == "$RELEASE_COMMIT" ]]
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Build production image
+        working-directory: services/social
+        run: bash scripts/build-production-image.sh
+
+      - name: Verify production image OCI labels
+        run: bash scripts/check-image-labels.sh
+
+      - name: Verify production Composer dependencies
+        run: >-
+          docker run --rm --entrypoint php
+          "$PIXELFED_IMAGE"
+          scripts/check-production-composer-dependencies.php
+
+      - name: Verify clean MariaDB migrations and workers
+        working-directory: services/social
+        run: bash scripts/check-clean-database-migrations.sh
+
+      - name: Generate production image SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.PIXELFED_IMAGE }}
+          format: spdx-json
+          output-file: pixelfed-sbom.spdx.json
+          upload-artifact: false
+
+      - name: Log in to the existing GitHub Container Registry package
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Verify the existing registry package sentinel
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          recorded_image="$(jq -er '.registry_image' docs/operations/release-traceability.v1.json)"
+          incumbent_digest="$(jq -er '.incumbent_record.last_recorded_image_digest' docs/operations/release-traceability.v1.json)"
+          [[ "$recorded_image" == "$REGISTRY_IMAGE" ]]
+          [[ "$incumbent_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$incumbent_digest" == "sha256:1fd27c8f76595595912e6f12f1677c7f108aa50f64b38a85089006b47ad395f1" ]]
+          if ! docker buildx imagetools inspect "$REGISTRY_IMAGE@$incumbent_digest" >/dev/null 2>/dev/null; then
+            echo "The existing registry package sentinel is not reachable." >&2
+            exit 1
+          fi
+
+      - name: Publish the immutable full-commit tag
+        id: publish
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          immutable_tag="$REGISTRY_IMAGE:$GITHUB_SHA"
+          inspect_stderr="$(mktemp)"
+          cleanup_inspect() {
+            rm -f -- "$inspect_stderr"
+          }
+          trap cleanup_inspect EXIT
+
+          inspect_status=0
+          if docker buildx imagetools inspect "$immutable_tag" >/dev/null 2>"$inspect_stderr"; then
+            echo "The immutable candidate tag already exists; refusing to replace it." >&2
+            exit 1
+          else
+            inspect_status=$?
+          fi
+
+          manifest_absent=false
+          if grep -Fq "$immutable_tag: not found" "$inspect_stderr"; then
+            manifest_absent=true
+          elif grep -Fq "no such manifest: $immutable_tag" "$inspect_stderr"; then
+            manifest_absent=true
+          elif grep -Fq "manifest unknown" "$inspect_stderr" && grep -Fq "$immutable_tag" "$inspect_stderr"; then
+            manifest_absent=true
+          elif grep -Eq "manifests/${GITHUB_SHA}([^0-9a-f]|$).*404 Not Found|404 Not Found.*manifests/${GITHUB_SHA}([^0-9a-f]|$)" "$inspect_stderr"; then
+            manifest_absent=true
+          fi
+
+          if [[ "$manifest_absent" != "true" ]]; then
+            printf 'Unable to prove the immutable candidate tag is absent (inspect status %s).\n' "$inspect_status" >&2
+            exit 1
+          fi
+
+          cleanup_inspect
+          trap - EXIT
+          docker tag "$PIXELFED_IMAGE" "$immutable_tag"
+          docker push "$immutable_tag"
+
+          digest=""
+          for _ in {1..6}; do
+            digest="$(
+              docker buildx imagetools inspect "$immutable_tag" 2>/dev/null |
+                awk '/^Digest:/ { print $2; exit }'
+            )"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] && break
+            sleep 5
+          done
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "Published \`$REGISTRY_IMAGE@$digest\`." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate immutable release traceability record
+        env:
+          IMAGE_DIGEST: ${{ steps.publish.outputs.digest }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          jq -n \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg revision "$GITHUB_SHA" \
+            --arg upstream_revision "$(tr -d '\r\n' < UPSTREAM_REVISION)" \
+            --arg application_version "$(sed -n "s/^[[:space:]]*'version'[[:space:]]*=>[[:space:]]*'\([^']*\)'.*/\1/p" services/social/config/pixelfed.php | head -n 1)" \
+            --arg image "$REGISTRY_IMAGE" \
+            --arg image_digest "$IMAGE_DIGEST" \
+            '{schema_version: 1, repository: $repository, revision: $revision, upstream_revision: $upstream_revision, application_version: $application_version, image: $image, image_digest: $image_digest}' \
+            > "release-traceability-${GITHUB_SHA}.json"
+
+      - name: Attest production image provenance
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
+        with:
+          subject-name: ${{ env.REGISTRY_IMAGE }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest production image SBOM
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
+        with:
+          subject-name: ${{ env.REGISTRY_IMAGE }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          sbom-path: pixelfed-sbom.spdx.json
+          push-to-registry: true
+
+      - name: Upload immutable release evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: social-candidate-evidence-${{ github.sha }}
+          path: |
+            pixelfed-sbom.spdx.json
+            release-traceability-*.json
+          if-no-files-found: error
+
+      - name: Log out of GitHub Container Registry
+        if: always()
+        run: docker logout ghcr.io || true

@@ -1,52 +1,50 @@
-# Mochirii Social governance seed guidance
+# Mochirii Social repository guidance
 
-This standalone working tree is a history-clean, source-only proposal for the
-one-time initialization of `Mochirii-Wushu/Mochirii-Social`. It contains no
-runnable Pixelfed service, deployment configuration, provider binding,
-credential, member data, package, image, or production authority.
+This repository is the canonical source and deployment authority for
+`social.mochirii.com` after the separately gated production cutover. The
+application remains under `services/social` for the first authority transfer.
 
 ## Required workflow
 
 - Begin with `git status --short --branch` and preserve every existing change.
-- The exact reviewed root tree may be committed and first-pushed to an empty
-  `main` only after a separate, target-specific bootstrap authorization. This
-  file grants no such authority.
-- After that single bootstrap exception, every change uses a focused branch,
-  exact-head CI, accountable review, and the normal protected merge path.
-- Run `npm ci --ignore-scripts`, `npm run check`, and
-  `npm run check:remotes` before handoff.
-- Use `node scripts/configure-remotes.mjs --apply` only in the intended clone;
-  it changes clone-local Git configuration and never fetches or pushes.
+- Use one focused branch and protected pull request. Never edit `main`
+  directly, rewrite the governance-seed ancestry, force-push, or push upstream.
+- Run repository commands from the root and application commands from
+  `services/social`. Derive checks from the current manifests and workflows.
+- Run `npm ci --ignore-scripts`, `npm --prefix services/social ci`,
+  `npm run check`, the Composer/PHP checks, container checks where available,
+  and `git diff --check` before handoff.
 
-## Hard boundaries
+## Locked cutover boundaries
 
-- Keep this seed governance-only. Do not add application source, generated
-  assets, containers, runtime configuration, hostnames beyond documented
-  scope, provider settings, secrets, databases, media, backups, or archives.
-- Preserve the exact GNU AGPLv3 license and official Pixelfed attribution.
-  Production activation still requires qualified legal review and an exact
-  digest-bound Corresponding Source offer; a private repository is not that
-  offer.
-- Keep registration closed and ActivityPub disabled in every later source
-  integration unless a separate product and security approval changes them.
-- `origin` is canonical Mochirii source. `upstream` is official Pixelfed and
-  must remain fetch-only with the inert push sentinel. Never push upstream.
-- Do not guess a CODEOWNERS identity or GitHub plan. Both remain explicit
-  blockers until an existing organization team and private-capable plan are
-  approved and verified.
-- All candidate publication, source cutover, ruleset, provider, runtime, legal,
-  and deployment booleans remain false. Passing source checks does not change
-  those gates.
-- Never commit credentials, environment values, private evidence, user data,
-  local paths, or recovery material. Production must never depend on a
-  workstation.
+- Preserve the exact incumbent application behavior. This repository move is
+  not an application upgrade, data migration, infrastructure migration, or
+  feature change.
+- Keep registration closed and ActivityPub federation disabled.
+- Preserve the existing database, Redis, storage, media, authentication,
+  membership, worker, scheduler, Compose, and recovery behavior.
+- Preserve upstream licenses and attribution. Upstream and provider names may
+  remain in internal code, dependencies, operator documentation, private
+  technical logs, and legally required notices, but not ordinary
+  member-facing product copy.
+- Production accepts only an exact reviewed immutable image digest tied to one
+  full Social commit and the pinned upstream revision.
+- The first Social-repository cutover uses `migration_approval=NONE`. Any
+  pending migration stops before the runtime switch.
 
-## Safe integration topology
+## Release and secret boundaries
 
-The approved sequence is: independently review this no-parent seed; create one
-root commit; first-push it to empty `main` only under exact approval; verify
-remote readback and CI; establish the separately approved protected-main
-capability; then apply the independently reviewed full Social candidate as one
-child commit whose final tree preserves the accepted source tree plus only the
-reviewed governance delta. Do not rewrite or push the rejected predecessor
-ancestry.
+- The host protocol retains the exact legacy
+  `repository=Mochirii-Wushu/Mochirii` sentinel. It is not the canonical source
+  owner. New releases also carry `source_repository` and `source_commit`.
+- Historical live provenance fields that cannot be read through the existing
+  restricted host boundary are `UNKNOWN_PRE_CUTOVER`. Do not install a new
+  verifier solely to reconstruct them.
+- Never commit runtime `.env` files, OAuth keys, database/media/cache state,
+  backups, host addresses, credentials, generated archives, or private
+  evidence.
+- A source or CI result never authorizes image publication, a provider
+  mutation, secret change, production deployment, or rollback. Follow the
+  exact gates in `docs/operations/DEPLOYMENT.md`.
+- `origin` is the canonical Mochirii repository. `upstream` is the official
+  pull-only source remote with an inert push URL.

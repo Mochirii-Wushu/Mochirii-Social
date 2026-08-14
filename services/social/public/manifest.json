@@ -1,0 +1,39 @@
+{
+  "name": "Mochirii Social",
+  "short_name": "Mochirii",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "background_color": "#101c19",
+  "theme_color": "#172a23",
+  "description": "A members-only Mochirii social hall for guild image posts and profiles.",
+  "categories": ["social", "photo"],
+  "shortcuts": [
+    {
+      "name": "Notifications",
+      "url": "/account/activity",
+      "description": "Keep up with your interactions"
+    },
+    {
+      "name": "Direct Messages",
+      "url": "/account/direct",
+      "description": "Communicate directly with members"
+    },
+    {
+      "name": "Profile",
+      "url": "/i/me",
+      "description": "View your own profile page"
+    },
+    {
+      "name": "Settings",
+      "url": "/settings",
+      "description": "Go to your account settings"
+    }
+  ],
+  "icons": [
+    {
+      "src": "img/mochirii-icon.png",
+      "type": "image/png",
+      "sizes": "180x180"
+    }
+  ]
+}
