@@ -13,11 +13,17 @@ records the Git mode and path relative to `services/social`. They deliberately
 do not hash Windows worktree bytes, so CRLF checkout settings cannot create
 false drift.
 
-`source-equivalence.v1.json` is the only transition allowlist. Every
-non-allowlisted blob and every Git mode must match the incumbent exactly.
-Files may not be added or removed inside `services/social`. The checker also
-requires the actual differing paths to equal the allowlist, preventing unused
-exceptions.
+`source-equivalence.v1.json` is the only initial-transition allowlist. Every
+non-allowlisted blob and every Git mode in the sealed cutover tree must match
+the incumbent exactly. The checker also requires the actual differing paths to
+equal the allowlist, preventing unused exceptions.
+
+The cutover completed at Social commit
+`c42373b513b61171e8eb5b6800ee4ab4c8c6a23f`, whose `services/social` tree is
+`83cd6b9769d065078bdcc7e2fef507c08846baf9`. The checker reads that immutable
+Git tree from history. It no longer compares the current application index to
+the imported manifest, because doing so would turn a one-time transfer proof
+into a permanent ban on reviewed changes in the canonical repository.
 
 Regenerate the manifests only from a clean reviewed Website clone containing
 the exact pinned commit:
@@ -28,6 +34,10 @@ node scripts/generate-source-equivalence-manifests.mjs \
   --write
 npm run check:source-equivalence
 ```
+
+Do not regenerate either sealed manifest for post-cutover development. A
+future change is reviewed as a normal Social commit and remains traceable to
+the cutover through Git ancestry.
 
 The generator reads immutable Git objects and the Social candidate index. It
 does not inspect runtime configuration, credentials, production data, media,

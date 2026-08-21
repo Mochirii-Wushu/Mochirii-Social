@@ -6,8 +6,12 @@ const root = process.cwd();
 const contract = JSON.parse(
   readFileSync("docs/operations/source-equivalence.v1.json", "utf8"),
 );
+const authority = JSON.parse(
+  readFileSync("docs/operations/authority-cutover.v1.json", "utf8"),
+);
 const expectedCount = contract.source.file_count;
 const prefix = "services/social/";
+const cutoverCommit = authority.cutover?.repository_commit;
 
 function fail(message) {
   throw new Error(message);
@@ -48,22 +52,29 @@ function parseManifest(file) {
   return { entries, headers };
 }
 
-function parseIndex() {
-  return git(["ls-files", "-s", "-z", "--", "services/social"]).stdout
+function parseCutoverTree() {
+  return git([
+    "ls-tree",
+    "-r",
+    "-z",
+    cutoverCommit,
+    "--",
+    "services/social",
+  ]).stdout
     .toString("utf8")
     .split("\0")
     .filter(Boolean)
     .map((entry) => {
-      const match = /^(100644|100755) ([0-9a-f]{40}) 0\t(.+)$/u.exec(entry);
-      if (!match) fail("Malformed destination index entry.");
+      const match = /^(100644|100755) blob ([0-9a-f]{40})\t(.+)$/u.exec(entry);
+      if (!match) fail("Malformed cutover-tree entry.");
       const fullPath = match[3].replaceAll("\\", "/");
-      if (!fullPath.startsWith(prefix)) fail("Destination path escaped services/social.");
+      if (!fullPath.startsWith(prefix)) fail("Cutover path escaped services/social.");
       return { mode: match[1], oid: match[2], path: fullPath.slice(prefix.length) };
     })
     .sort((left, right) => left.path.localeCompare(right.path));
 }
 
-function hashIndex(entries) {
+function hashEntries(entries) {
   const unique = [...new Set(entries.map((entry) => entry.oid))];
   const output = git(
     ["cat-file", "--batch"],
@@ -107,13 +118,29 @@ if (
 ) {
   fail("Source-equivalence contract identity is invalid.");
 }
+if (
+  authority.schema_version !== 1 ||
+  authority.canonical_repository !== "Mochirii-Wushu/Mochirii-Social" ||
+  cutoverCommit !== "c42373b513b61171e8eb5b6800ee4ab4c8c6a23f" ||
+  authority.cutover?.application_tree !==
+    "83cd6b9769d065078bdcc7e2fef507c08846baf9"
+) {
+  fail("Authority-cutover identity is invalid.");
+}
+const recordedCutoverTree = git(
+  ["rev-parse", `${cutoverCommit}:services/social`],
+  { encoding: "utf8" },
+).stdout.trim();
+if (recordedCutoverTree !== authority.cutover.application_tree) {
+  fail("The recorded cutover application tree does not match Git history.");
+}
 
 const source = parseManifest(
   "docs/operations/incumbent-website-social.sha256",
 );
 const imported = parseManifest("docs/operations/imported-social.sha256");
-const indexEntries = parseIndex();
-const actual = hashIndex(indexEntries);
+const cutoverEntries = parseCutoverTree();
+const actual = hashEntries(cutoverEntries);
 
 for (const [manifestName, manifest] of [
   ["incumbent", source],
@@ -128,7 +155,7 @@ for (const [manifestName, manifest] of [
     fail(`${manifestName} manifest identity or count is invalid.`);
   }
 }
-if (actual.size !== expectedCount) fail("Destination index count is invalid.");
+if (actual.size !== expectedCount) fail("Cutover-tree file count is invalid.");
 
 const sourcePaths = [...source.entries.keys()].sort();
 const importedPaths = [...imported.entries.keys()].sort();
@@ -147,7 +174,7 @@ for (const filePath of sourcePaths) {
     recorded.mode !== current.mode ||
     recorded.sha256 !== current.sha256
   ) {
-    fail(`Imported manifest drifted from the Git index: ${filePath}`);
+    fail(`Imported manifest differs from the sealed cutover tree: ${filePath}`);
   }
 }
 
@@ -169,20 +196,8 @@ if (JSON.stringify(differences) !== JSON.stringify(allowed)) {
   );
 }
 
-const worktreeDiff = git(
-  ["diff", "--quiet", "--", "services/social"],
-  { allowedStatuses: [0, 1] },
-);
-if (worktreeDiff.status !== 0) {
-  fail("services/social has unstaged bytes outside the frozen candidate index.");
-}
-const untracked = git(
-  ["ls-files", "--others", "--exclude-standard", "--", "services/social"],
-  { encoding: "utf8" },
-).stdout.trim();
-if (untracked) fail("services/social contains untracked candidate paths.");
-
 console.log(
   `Source equivalence passed: ${expectedCount - allowed.length} exact blobs, ` +
-    `${allowed.length} reviewed repository-transition blobs, and no mode drift.`,
+    `${allowed.length} reviewed repository-transition blobs, no mode drift, ` +
+    `and immutable cutover tree ${authority.cutover.application_tree}.`,
 );

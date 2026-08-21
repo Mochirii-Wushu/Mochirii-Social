@@ -1,6 +1,6 @@
 # ADR 0002: Incumbent production source integration
 
-- Status: Accepted for the Stage 1 candidate
+- Status: Superseded for ownership status by ADR 0003
 - Date: 2026-08-13
 
 ## Context
@@ -36,5 +36,6 @@ separately identifies `Mochirii-Wushu/Mochirii-Social` and its exact commit.
   `UNKNOWN_PRE_CUTOVER` and is not reconstructed by installing a verifier.
 - Complete provenance begins with the first immutable candidate produced from
   this repository.
-- Production authority remains with Website until the separately gated Social
-  cutover and recovery validation succeed.
+- Production authority remained with Website until the separately gated Social
+  cutover and recovery validation succeeded. ADR 0003 records that completed
+  transition without changing this ADR's initial-candidate decision.
