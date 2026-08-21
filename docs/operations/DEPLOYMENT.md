@@ -15,23 +15,47 @@ Do not install a verifier solely to reconstruct them. The last recorded
 Website deployment commit and image digest remain historical evidence, not a
 claim about current live identity.
 
-## Required first-cutover evidence
+## Completed first-cutover evidence
 
-Before deploying from this repository:
+The first deployment from this repository completed on 2026-08-14. Its exact
+commit, application tree, image digest, candidate artifact hashes,
+attestations, deployment run, and hosted-verification run are sealed in
+`authority-cutover.v1.json`. That release:
 
-1. run the existing restricted online-hosting verifier;
-2. create a fresh encrypted application-level backup and pass isolated restore
-   validation through the Social recovery workflow;
-3. require source-equivalence validation and green exact-head CI;
-4. publish one immutable candidate tied to the reviewed Social commit;
-5. verify its digest, OCI source/revision/upstream/version labels, SBOM, and
+1. passed the existing restricted online-hosting verifier;
+2. required source-equivalence validation and green exact-head CI;
+3. published one immutable candidate tied to the reviewed Social commit;
+4. verified its digest, OCI source/revision/upstream/version labels, SBOM, and
    GitHub provenance;
-6. require the candidate pending-migration result to be empty; and
-7. let the existing root-owned host deployer confirm that current and rollback
-   release metadata exist.
+5. required the candidate pending-migration result to be empty; and
+6. used the existing root-owned host deployer and rollback metadata.
 
-The first cutover accepts only `migration_approval=NONE`. Any pending migration
-must stop before application containers are replaced.
+The first cutover accepted only `migration_approval=NONE`. Historical workflow
+success is not current host identity: the restricted verifier at that commit
+did not return the running commit, digest, or OCI labels. A later release must
+first add and validate that non-secret readback rather than infer current state
+from the 2026-08-14 run. Until then, the status is
+`UNVERIFIED_CURRENT_LIVE`.
+
+## Successor release gate
+
+Before another production deployment:
+
+1. obtain the exact source, publication, production, migration, and any
+   provider approvals required for that release;
+2. pass exact-head source, application, image, source-package, recovery, and
+   security validation;
+3. read the current host commit, image digest, labels, migration inventory, and
+   rollback reference through the reviewed restricted verifier;
+4. bind the candidate image to its exact public Corresponding Source package
+   and pass the counsel-reviewed network-source gate;
+5. preserve closed registration and fail-closed federation/public-discovery
+   posture; and
+6. record the predecessor digest and complete successor evidence without
+   rewriting the first-cutover record.
+
+Any pending migration still stops unless a separate verified backup and exact
+migration approval exist.
 
 ## Release protocol
 

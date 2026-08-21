@@ -1,13 +1,16 @@
 # Mochirii Social
 
 Canonical source, immutable image, deployment, validation, and recovery
-repository for `social.mochirii.com`.
+repository for `social.mochirii.com`. The authority cutover completed on
+2026-08-14; its exact evidence and current verification limits are recorded in
+[`docs/operations/AUTHORITY-CUTOVER.md`](docs/operations/AUTHORITY-CUTOVER.md).
 
-The application stays at `services/social` and is imported from Website commit
+The application stays at `services/social` and was imported from Website commit
 `ef5675575aeea6cb41def256d0a889f60f963ff8`. The imported tree preserves the
 incumbent application, dependencies, generated assets, migrations, production
-Compose template, operations scripts, and upstream revision. This authority
-transfer does not upgrade the application or change production behavior.
+Compose template, operations scripts, and upstream revision. The sealed
+equivalence manifests continue to prove that first cutover; subsequent source
+changes follow ordinary reviewed Social history and release gates.
 
 ## Fixed posture
 
@@ -37,6 +40,7 @@ Candidate publication and production deployment are separate manual gates.
 ## Operations
 
 - [Source equivalence](docs/operations/SOURCE-EQUIVALENCE.md)
+- [Authority cutover](docs/operations/AUTHORITY-CUTOVER.md)
 - [Deployment and rollback](docs/operations/DEPLOYMENT.md)
 - [Release traceability](docs/operations/RELEASE-TRACEABILITY.md)
 - [Upstream provenance](docs/operations/UPSTREAM-PROVENANCE.md)

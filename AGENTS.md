@@ -1,8 +1,8 @@
 # Mochirii Social repository guidance
 
 This repository is the canonical source and deployment authority for
-`social.mochirii.com` after the separately gated production cutover. The
-application remains under `services/social` for the first authority transfer.
+`social.mochirii.com`. The separately gated production cutover completed on
+2026-08-14, and the application remains under `services/social`.
 
 ## Required workflow
 
@@ -15,11 +15,11 @@ application remains under `services/social` for the first authority transfer.
   `npm run check`, the Composer/PHP checks, container checks where available,
   and `git diff --check` before handoff.
 
-## Locked cutover boundaries
+## Cutover and post-cutover boundaries
 
-- Preserve the exact incumbent application behavior. This repository move is
-  not an application upgrade, data migration, infrastructure migration, or
-  feature change.
+- Preserve the immutable first-cutover manifests and evidence. New application
+  behavior, dependency, migration, generated-asset, route, or runtime-default
+  changes require their own focused post-cutover review and release evidence.
 - Keep registration closed and ActivityPub federation disabled.
 - Preserve the existing database, Redis, storage, media, authentication,
   membership, worker, scheduler, Compose, and recovery behavior.
@@ -29,17 +29,20 @@ application remains under `services/social` for the first authority transfer.
   member-facing product copy.
 - Production accepts only an exact reviewed immutable image digest tied to one
   full Social commit and the pinned upstream revision.
-- The first Social-repository cutover uses `migration_approval=NONE`. Any
-  pending migration stops before the runtime switch.
+- The first Social-repository cutover used `migration_approval=NONE`. Any later
+  pending migration still stops without its own exact approval and verified
+  backup.
 
 ## Release and secret boundaries
 
 - The host protocol retains the exact legacy
   `repository=Mochirii-Wushu/Mochirii` sentinel. It is not the canonical source
   owner. New releases also carry `source_repository` and `source_commit`.
-- Historical live provenance fields that cannot be read through the existing
-  restricted host boundary are `UNKNOWN_PRE_CUTOVER`. Do not install a new
-  verifier solely to reconstruct them.
+- Historical live provenance fields that could not be read before cutover
+  remain `UNKNOWN_PRE_CUTOVER`. The completed cutover evidence and current
+  live-identity limitation are recorded in
+  `docs/operations/AUTHORITY-CUTOVER.md`; do not represent historical workflow
+  success as a fresh host readback.
 - Never commit runtime `.env` files, OAuth keys, database/media/cache state,
   backups, host addresses, credentials, generated archives, or private
   evidence.
